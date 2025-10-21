@@ -1,12 +1,29 @@
+
 services:
+  # Python Service
   python:
-    container_name: fastapi
-    hostname: fastapi
     tty: true
     image: "python"
     ports:
-      - "8000:8000"
+      - 8000:8000
     volumes:
-      - type: bind
-        source: .
-        target: /fastapi
+      - .:/app    
+  # MariaDB Service
+  mariadb:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: password123
+    volumes:
+      - mysqldata:/var/lib/mysql
+  # phpMyAdmin Service
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    ports:
+      - 8080:80
+    environment:
+      PMA_HOST: mariadb
+    depends_on:
+      - mariadb
+# Volumes
+volumes:
+  mysqldata:
