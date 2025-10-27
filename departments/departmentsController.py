@@ -1,4 +1,11 @@
 from fastapi import APIRouter
+from departments.departmentsService import (
+    getAllDepartments,
+    getOneDepartmentByID,
+    getOneDepartmentByName,
+    insertOneDepartment,
+)
+from utils.db import SessionDep
 from .departmentsModel import Department, DepartmentList
 
 router = APIRouter(
@@ -6,29 +13,56 @@ router = APIRouter(
     responses={404: {"respuesta": "Not found"}}
 )
 
-# "Base de datos" temporal en memoria
 storageDepartment = DepartmentList(departments=[])
 
-# Obtener todos los departamentos
-@router.get("/")
-async def index():
-    return {"respuesta": storageDepartment.departments}
 
-# Obtener un departamento por id
+@router.get("/")
+async def index(session: SessionDep):
+    departments = await getAllDepartments(session)
+    return {"departments": departments}
+
+
 @router.get("/{id}")
-async def show(id: int):
-    for item in storageDepartment.departments:
-        if item.id == id:
-            return {"respuesta": item}
+async def show(id: int, session: SessionDep):
+    departmentFound = await getOneDepartmentByID(session, id)
+    if departmentFound is not None:
+        return {"respuesta": departmentFound}
     return {"respuesta": f"Departamento con id {id} no encontrado"}
 
-# Crear un nuevo departamento
+
 @router.post("/")
-async def store(department: Department):
-    for item in storageDepartment.departments:
-        if item.id == department.id:
-            return {"respuesta": f"El Departamento con id {department.id} ya existe"}
-        elif item.name == department.name:
-            return {"respuesta": f"El Departamento con nombre {department.name} ya existe"}
-    storageDepartment.departments.append(department)
-    return {"respuesta": f"Creado el departamento {department.name}"}
+async def store(department: Department, session: SessionDep):
+    # Verificar si ya existe un departamento con el mismo nombre
+    existing = await getOneDepartmentByName(session, department.name)
+    if existing is not None:
+        return {"respuesta": f"El Departamento con nombre '{department.name}' ya existe"}
+
+    # Insertar nuevo registro
+    new_department = await insertOneDepartment(department, session)
+    return {"respuesta": f"Departamento '{new_department.name}' creado exitosamente"}
+
+
+@router.put("/{id}")
+async def update(id: int, department: Department, session: SessionDep):
+    existing = await getOneDepartmentByID(session, id)
+    if existing is None:
+        return {"respuesta": f"No existe el departamento con id {id}"}
+
+    existing.name = department.name
+    existing.phone = department.phone
+    existing.email = department.email
+    session.add(existing)
+    session.commit()
+    session.refresh(existing)
+    return {"respuesta": f"Departamento {id} actualizado correctamente"}
+
+
+@router.delete("/{id}")
+async def destroy(id: int, session: SessionDep):
+    department = await getOneDepartmentByID(session, id)
+    if not department:
+        return {"respuesta": f"No se encontró el departamento con id {id}"}
+
+    session.delete(department)
+    session.commit()
+    return {"respuesta": f"Departamento con id {id} eliminado correctamente"}

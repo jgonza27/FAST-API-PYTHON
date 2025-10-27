@@ -9,7 +9,7 @@ async def root():
 from departments import departmentsController
 app.include_router(departmentsController.router, prefix="/api")
 
-from departments.departmentsModel import create_db_and_tables
+from utils.db import create_db_and_tables
 
 @app.on_event("startup")
 def on_startup():
